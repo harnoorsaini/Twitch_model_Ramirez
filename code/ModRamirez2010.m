@@ -104,7 +104,7 @@ function [f_total, t_prime] = forceFrequency(t)
 % n_MU3 = randi([0 1],size(t,1),size(t,2));
 
 % third batch of firings w/ firings from Leonardo's file ...mat
-load data/cbm/Modelle/Ramirez13/255MiLosa150414150101rampa20p1_decomp.mat
+load 255MiLosa150414150101rampa20p1_decomp.mat
 % initialize firings
 % maxsize_MUfiring = max(size(MUPulses{4}),size(MUPulses{3}),size(MUPulses{5}));
 
@@ -266,7 +266,7 @@ end
 function [Pprime,Tc,fr,r,c] = const_ft()
 %% f-t
 Pprime = 0.110; % [N]
-Tc = 0.04; % [s]
+Tc = 0.4; % [s]
 % Tc = 0.4; % [s]
 fr = 90; % [Hz]
 r = 1.0535; % [-]
