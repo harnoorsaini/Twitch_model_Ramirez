@@ -44,13 +44,6 @@ function [fl] = forceLength(lam)
 fl = exp(-(lam-lamOpt).^2/(2.*(1-beta)^2));
 end
 
-%% force-VOLTAGE relationship
-function [fV] = forceVoltage(V)
-%% check fV, comparison against Fg 6
-[a,d] = const_fV();
-fV = 1. - exp((a-V)./d);
-end
-
 function [f_total, t_prime] = forceFrequency(t)
 [Pprime,Tc,fr,r,c] = const_ft();
 % fpulse = Pprime*t/Tc*exp(1.-t/Tc);
@@ -126,65 +119,6 @@ xlabel('time [s]','FontSize',14), ylabel('force = \Sigma \delta_i f_p_u_l_s_e')
 
 end
 
-function [ftrain] = tetanus(t)
-%% define parameters and constants
-[Pprime,Tc,fr,r,c] = const_ft();
-n = fr*t(1,size(t,2));
-fr_norm = fr*Tc;
-f_fr = 1. - r*exp(-fr_norm/c);
-delStim = 1/fr;
-
-%% loop-it
-ftrain = zeros(size(t));
-for i=1:size(t,2)
-    for j=1:n
-%       
-        timeInt = t(i)-delStim*(j);
-        timeInt_MU1 = t(i)-delStim*(j);
-        if timeInt<0.
-            timeInt = 0.;
-        end
-        ftrain(i) = ftrain(i) + Pprime*timeInt/Tc.*exp(1.-timeInt/Tc).*f_fr; 
-    end
-end
-
-%% loop-itftrain = zeros(size(t));
-for i=1:size(t,2)
-    for j=1:n
-        timeInt = t(i)-delStim*(j);
-        if timeInt<0.
-            timeInt = 0.;
-        end
-        ftrain(i) = ftrain(i) + Pprime*timeInt/Tc.*exp(1.-timeInt/Tc).*f_fr; 
-    end
-end
-
-end
-
-function [fsat] = fatigue(t,n,delStim)
-
-[concA,concA_50,h] = concentration(t,n);
-
-fsat = concA.^h./(concA_50^h + concA.^h);
-end
-
-function [concA,concA_50,h] = concentration(t,n)
-
-concA0 = 0.;
-concA = 0.;
-
-[Pprime,Tc,fr,r,c] = const_ft();
-delStim  = 1./fr;
-[concA_50,t_Amax,concA_max,h] = const_fsat(fr);
-for i=1:n
-    concA = concA+concA0+(concA_max-concA0)*(t-delt)/t_Amax.*exp(1.-(t-delt)/t_Amax);
-end
-end
-
-function [psiA,DpsiA] = strainEnergy()
-
-end
-
 %% Constants
 function [lamOpt,beta] = const_fl()
 %% fl
@@ -208,6 +142,7 @@ fr = 90; % [Hz]
 r = 1.0535; % [-]
 c = 1.1245; % [-]
 end
+
 function [concA_50,t_Amax,concAmax1,concAmax2,h] = const_fsat(fr)
 t_Amax = 40/10e3; % [s]
 concAmax1 = 0.5; concAmax2=0.3;
