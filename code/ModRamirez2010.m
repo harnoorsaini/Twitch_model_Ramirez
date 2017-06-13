@@ -15,14 +15,10 @@ lam=1.4;
 
 %% voltage
 V = 4.;
-% V = 0.
-% [fV] = forceVoltage(V)
 % disregard the "external activation"
 fV = 1.;
 
 %% time array
-% t = 0:0.01:1.2;
-% t = 0:0.0001:1.2;
 t = 0:0.001:1.2;
 %% single puls
 [fpulse,time] = forceFrequency(t);
@@ -39,35 +35,6 @@ f_total_norm = f_total/f_total_max;
 figure,
 plot(time,f_total_norm)
 xlabel('time [s]'), ylabel('normalized force = (f_\lambda \Sigma_i \delta_i f_p_u_l_s_e) / f_max')
-
-%% plot total force - single pulse
-% figure(1)
-% hold on
-% plot(t,f_total,'.','LineWidth',2)
-% xlabel('time [s]')
-% ylabel('f')
-% grid on
-% 
-% %% train of impulses
-% [ftrain] = tetanus(t);
-% F0 = 8.; % [N]
-
-%% total force
-% f_total = F0*fl*fV*ftrain;
-% f_total = fl*fV*ftrain;
-% close all;
-
-%% plot total force - tetanus
-% figure(1)
-% hold on
-% plot(t,f_total,'-.k','LineWidth',2)
-% xlabel('time [s]')
-% ylabel('f')
-% grid on
-% legend('first','second')
-
-% [fsat] = fatigue(t,n);
-% [psiA,DpsiA] = strainEnergy(lam);
 end
 
 %% force-LENGTH relationship
@@ -75,11 +42,6 @@ function [fl] = forceLength(lam)
 [lamOpt,beta] = const_fl();
 
 fl = exp(-(lam-lamOpt).^2/(2.*(1-beta)^2));
-% close all;
-% plot(lam,fl)
-% xlabel('\lambda')
-% ylabel('f(\lambda)')
-% grid on
 end
 
 %% force-VOLTAGE relationship
@@ -94,9 +56,6 @@ function [f_total, t_prime] = forceFrequency(t)
 % fpulse = Pprime*t/Tc*exp(1.-t/Tc);
 
 %% Motor unit recruitment
-% the first  trial for the firing
-% n_MU1 = zeros(size(t)); n_MU2 = zeros(size(t)); n_MU3 = zeros(size(t));
-% n_MU1(1) = 1.; n_MU2(2) = 1.; n_MU3(3) = 1.;
 
 % secind batch of firings w/ randomized n's
 % n_MU1 = randi([0 1],size(t,1),size(t,2));
@@ -105,20 +64,10 @@ function [f_total, t_prime] = forceFrequency(t)
 
 % third batch of firings w/ firings from Leonardo's file ...mat
 load 255MiLosa150414150101rampa20p1_decomp.mat
-% initialize firings
-% maxsize_MUfiring = max(size(MUPulses{4}),size(MUPulses{3}),size(MUPulses{5}));
 
 % maxsize_MUfiring = cellfun('size',MUPulses);
-% n_MU = zeros(size(MUPulses));
 size_MU1 = size(MUPulses{1}); size_MU2 = size(MUPulses{2}); size_MU3 = size(MUPulses{3}); size_MU4 = size(MUPulses{4}); size_MU5 = size(MUPulses{5});
 size_MU = [size_MU1,size_MU2,size_MU3,size_MU4,size_MU5];
-
-% n_MU1=zeros(1,max(size_MU));
-% n_MU2=n_MU1; n_MU3=n_MU2; n_MU4 = n_MU3; n_MU5=n_MU4;
-
-% n_MU1=zeros(size_MU1);n_MU2=zeros(size_MU2);n_MU3=zeros(size_MU3);n_MU4=zeros(size_MU4);n_MU5=zeros(size_MU5);
-% 
-% n_MU1(MUPulses{1})=1; n_MU2(MUPulses{2})=1; n_MU3(MUPulses{3})=1; n_MU4(MUPulses{4})=1; n_MU5(MUPulses{5})=1;
 
 for nMU = 1:size(MUPulses,2)
     eval(['n_MU', int2str(nMU),'(MUPulses{nMU}) = 1;'])
@@ -128,12 +77,7 @@ end
 %% twitch function
 % wider one
 f_pulse_i = t/Tc.*exp(1.-t/Tc); % normalized by Pprime
-% f_pulse = interp(f_pulse_i,20,1);
-% f_pulse = interp(f_pulse_i,10,1);
 f_pulse = resample(f_pulse_i,2048,10000); %resample to match EMG recording rate
-
-% as given Ramirez 2010
-% f_pulse = t/Tc.*exp(1.-t/Tc); % normalized by Pprime
 
 %% convolution of the firing times w/ the single twitch
 list_nMU = who('n_MU*');
@@ -180,8 +124,6 @@ end
 legend('Total','Ref. signal','MU1','MU2','MU3','MU4','MU5','MU6','MU7','MU8','MU9','MU10','MU11','MU12')
 xlabel('time [s]','FontSize',14), ylabel('force = \Sigma \delta_i f_p_u_l_s_e')
 
-%% normalized force
-
 end
 
 function [ftrain] = tetanus(t)
@@ -217,12 +159,6 @@ for i=1:size(t,2)
     end
 end
 
-%% plot-it
-% close all;
-% figure(8)
-% hold on
-% plot(t,ftrain,t,f_tetanus,t,fsat)
-% legend('train','tetanus','sat')
 end
 
 function [fsat] = fatigue(t,n,delStim)
