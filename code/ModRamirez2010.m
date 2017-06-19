@@ -28,7 +28,7 @@ figure,
 plot(time,f_total)
 xlabel('time [s]'), ylabel('force = f_\lambda \Sigma_i \delta_i f_p_u_l_s_e')
 hold on
-plot(time,ref_signal)
+%plot(time,ref_signal)
 
 f_total_max = max(f_total);
 f_total_norm = f_total/f_total_max;
@@ -63,9 +63,11 @@ size_MU1 = size(MUPulses{1}); size_MU2 = size(MUPulses{2}); size_MU3 = size(MUPu
 size_MU = [size_MU1,size_MU2,size_MU3,size_MU4,size_MU5];
 
 for nMU = 1:size(MUPulses,2)
-    eval(['n_MU', int2str(nMU),'(MUPulses{nMU}) = 1;'])
+    eval(['n_MU', int2str(nMU),'(MUPulses{nMU}) = 1;']);
 end
 
+
+csvwrite('mufirings.txt', n_MU1')
 
 %% twitch function
 % wider one
@@ -98,7 +100,7 @@ end
 %% plots
 t_f_total = linspace(0,1.2,size(f_total,2));
 t_ref_signal= linspace(0,1.2,size(ref_signal,2));
-
+t_prime = t_f_total;
 %% increase font size on plots
 set(groot, 'defaultAxesFontSize',14)
 set(groot,'defaultTextFontSize',14) 
@@ -126,13 +128,6 @@ lamOpt = 1.;
 beta = .83616;
 end
 
-function [a,d] = const_fV()
-%% fV
-a = 1.609; % [V] 
-d = 1.4737; % [V]
-
-end
-
 function [Pprime,Tc,fr,r,c] = const_ft()
 %% f-t
 Pprime = 0.110; % [N]
@@ -141,26 +136,4 @@ Tc = 0.4; % [s]
 fr = 90; % [Hz]
 r = 1.0535; % [-]
 c = 1.1245; % [-]
-end
-
-function [concA_50,t_Amax,concAmax1,concAmax2,h] = const_fsat(fr)
-t_Amax = 40/10e3; % [s]
-concAmax1 = 0.5; concAmax2=0.3;
-if fr==30
-    h=1.5;
-    concAmax1 = 0.5; concAmax2=0.3;
-    concA_50 = 0.1; % [mu mol] 
-elseif fr== 60
-    h=1.25;
-    concAmax1 = 0.5; concAmax2=0.3;
-    concA_50 = 0.4; % [mu mol] 
-elseif fr==90
-    h=1.05;
-    concAmax1 = 0.5; concAmax2=0.24;
-    concA_50 = 0.55; % [mu mol] 
-else
-    h=1.05;
-    concAmax1 = 0.5; concAmax2=0.24;
-    concA_50 = 0.55; % [mu mol] 
-end
 end
