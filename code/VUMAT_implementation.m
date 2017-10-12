@@ -21,22 +21,31 @@ clear
 %close all
 clc
 
+outStr = ['INTEGRATED ACTIVATION BASED ON RAMIREZ 2012.'];
+disp(outStr)
+outStr = ['-------------------------------------------------------------'];
+disp(outStr)
+
 % -------------------------------------------------------------------------
 % USER INPUTS & PARAMETERS
+fatigue = 0;
+
 % MU firing parameters
 firing_type = 'generate'; % read or generate
-firing_inc = 100; 
-firing_freq = 20; %Hz (note 50Hz is tetanus)
+firing_freq = 50; %Hz
+filter_freq = 10; %Hz
+firing_time = 2; %s
 
 % unit pulse parameters 
 Pprime = 0.11;
 pulse_inc = 200;
-r = 1E7;
-s = 1;
-pulse_tstep = 0.005; %r*1E-9; %s
-Tcprime = 0.04; %s*r*4E-9; %s
+pulse_tstep = 0.002; %s
+Tcprime = 0.04; %s
 
+% -------------------------------------------------------------------------
+% SET UP FIRING TIMES & INITIALISE ARRAYS
 % set up convolution or "total" (minimum) time required
+firing_inc = firing_time/pulse_tstep;
 conv_inc = firing_inc+pulse_inc-1;
 conv_tvec = 0:pulse_tstep:pulse_tstep*(conv_inc-1);
 
@@ -48,11 +57,15 @@ switch firing_type
         fileID = fopen(fname,'r');
         formatSpec = '%f';
         xMusf = fscanf(fileID,formatSpec);
-        firing_inc = size(xMusf,1);
+        xMusf = xMusf';
+        firing_inc = size(xMusf,2);
+        conv_inc = firing_inc+pulse_inc-1;
+        conv_tvec = 0:pulse_tstep:pulse_tstep*(conv_inc-1);
         fclose(fileID);
     case 'generate'
         firing_tstep = 1/firing_freq;
         for global_time = conv_tvec
+            % if global_time is grea
             if global_time >= firing_tstep 
                 t_offset = global_time - firing_tstep;
                 break 
@@ -63,19 +76,33 @@ switch firing_type
         elseif t_offset > pulse_tstep/2
             firing_tstep = global_time;
         else
-            error('warning, firing_tstep = 0.5*pulse_tstep')
+            error('WARNING: firing_tstep = 0.5*pulse_tstep')
         end
-        xMusf_temp = mod(int8(conv_tvec/pulse_tstep), ... 
-            int8(firing_tstep/pulse_tstep))==0;
-        xMusf(1:firing_inc) = xMusf_temp(1:firing_inc);  
+        xMusf_temp = mod(int16(conv_tvec/pulse_tstep), ... 
+            int16(firing_tstep/pulse_tstep))==0;
+        xMusf(1:int16(firing_inc)) = xMusf_temp(1:int16(firing_inc));  
+        if firing_tstep < pulse_tstep
+            outStr = ['WARNING: increase pulse_tstep >=' num2str(firing_tstep)];
+            disp(outStr)
+        end
+
+        % find the resulting effective firing frequency
+        for i = 2:conv_inc
+            if xMusf_temp(i) == 1
+                eff_firing_freq = 1/conv_tvec(i);
+                break
+            end
+        end
+
+        if (eff_firing_freq ~= firing_freq) 
+            outStr = ['WARNING: effective frequency is ' num2str(eff_firing_freq)];
+            disp(outStr)   
+            outStr = ['Desired frequency is ' num2str(firing_freq) ];
+            disp(outStr)
+            outStr = ['Consider reducing pulse_tstep'];
+            disp(outStr)
+        end  
 end
-
-if firing_tstep < pulse_tstep
-    outStr = ['WARNING: increase pulse_tstep >=' num2str(firing_tstep)];
-    disp(outStr)
-
-end
-
 
 % -------------------------------------------------------------------------
 % COMPUTE THE UNIT PULSE
@@ -83,83 +110,106 @@ t = 0;
 %Pprime = 5.0;
 f_pulse(pulse_inc) = zeros;
 
-h = 1.05;
-A_m = 0.55;
-A_max = 0.5;
-A_0 = 0;
-t_Amax = 0.040;
-
 
 for j = 1:pulse_inc
-    A(j) = A_0 + (A_max-A_0) * (t/t_Amax) * exp((1-t)/t_Amax);
-    f_sat(j) = A(j)^h/(A_m^h+A(j)^h); 
-    A_max = A_max - 0.002;
     f_pulse(j) = Pprime*t/Tcprime * exp(1-t/Tcprime); 
     t = t + pulse_tstep;
-end 
+end
+
+% -------------------------------------------------------------------------
+% FREQUENCY DEPENDECE IN FORCE LEVEL
+fr = firing_freq;
+rfr = 1.0535;
+cfr = 1.1245;
+F_rnorm = fr*Tcprime;
+F_fr = 1 - rfr * exp(-F_rnorm)/cfr;
+
+if fatigue
+    h = 3.5;
+    A_m = 5.0;
+    A_max = 0.5;
+    A_0 = 0.0;
+    t_Amax = 0.21;
+    for j = 1:conv_inc
+        A(j) = A_0 + (A_max-A_0) * (t/t_Amax) * exp((1-t)/t_Amax);
+        f_sat(j) = (A(j)^h)/(A_m^h+A(j)^h); 
+        A_max = A_max - 0.0002;
+    end
+else 
+    f_sat = 1;
+end
 
 % -------------------------------------------------------------------------
 % CONVOLUTE THE UNIT PULSE WITH THE MU FIRINGS
-% pad firings with 0s
+x = f_pulse; 
+h = xMusf;
+
+m = length(x);
+n = length(h);
+
+X = [x,zeros(1,n)]; 
+H = [h,zeros(1,m)]; 
+
+for i=1:n+m-1
+    Y(i)=0;
+    for j=1:m
+        if(i-j+1>0)
+                Y(i)=Y(i)+X(j)*H(i-j+1);
+        else
+        end
+    end
+end
+
+
+
+% pad firings with 0s (for plotting)
 for j = firing_inc+1:conv_inc
       xMusf(j) = 0;
 end 
 
+% global activations
+alpha = Y;
+alpha_ff = Y.*F_fr;
+if fatigue, alpha_ff_fsat = Y.*f_sat*F_fr; end
+% compare to inbuilt convolution
+alpha_inbuilt = conv(f_pulse,double(xMusf));
 
-% size of xw = length(f_pulse)+length(MF_firing)-1
-m = 1;
-w_max = 0.0;
-summedFirings(conv_inc) = zeros;
-for k = 1:conv_inc
-      summedFirings(m) = 0.0;
-% size of f_pulse
-      for j = 1:firing_inc
-            if ( (m-j+1) >= 1 )
-                  summedFirings(m) = summedFirings(m) ... 
-                      + f_pulse(j) * xMusf(m-j+1) * f_sat(j);
-            end
-      end 
-      if (summedFirings(m) > w_max)
-            w_max = summedFirings(m);
-      end
-      m = m + 1;  
-end
-
-% normalise activation
-%alpha = summedFirings/w_max;
-alpha = summedFirings;
-
-% -------------------------------------------------------------------------
-% FREQUENCY DEPENDECE IN FORCE LEVEL
-rfr = 1.0535;
-cfr = 1.1245;
-F_rnorm = (0:1:100)*Tcprime;
-F_fr = 1 - rfr * exp(-F_rnorm)/cfr;
-
-
-% -------------------------------------------------------------------------
-% SATURATION IN FORCE LEVEL
-%h = 1.05;
-%A_m = 0.55;
-%A_max = 0.5;
-%A_0 = 0;
-%t_Amax = 0.040;
-
-
-%t = 0;
-%for i = 1:conv_inc
-%    A(i) = A_0 + (A_max-A_0) * (t/t_Amax) * exp((1-t)/t_Amax);
-%    
-%    
-%    t = t + pulse_tstep;
-%end
-
+d = designfilt('lowpassiir','FilterOrder',12, ...
+    'HalfPowerFrequency',filter_freq/fr,'DesignMethod','butter');
+alpha_filt = filtfilt(d,alpha);
 
 figure(1)
-plot(conv_tvec,alpha)
-hold on
-stem(conv_tvec, xMusf)
 
+hold on
+plot(conv_tvec,alpha)
+plot(conv_tvec,alpha_filt,'r')
+plot(conv_tvec,alpha_ff,'g')
+if fatigue, plot(conv_tvec,alpha_ff_fsat,'b'), end
+
+%ylim([0 2])
+plot(conv_tvec,alpha_inbuilt(1:length(conv_tvec)),'-b')
+ylabel('Summed global activtation')
+xlabel('time (s)')
+%yyaxis right
+%ylim([0 2])
+%xlim([0 1])
+stem(conv_tvec,xMusf)
+%ylabel('MUAP firing')
+title('MUAP and Summed Global Activation')
+
+
+if fatigue, figure(2), plot(f_sat), end
+
+
+fileID = fopen('integrated_activation.txt','w');
+outMat(1,:) = conv_tvec;
+outMat(2,:) = alpha_filt;
+fprintf(fileID,'%12.8f %12.8f\n', outMat);
+fclose(fileID);
+
+disp('COMPLETE')
+
+%hold on
 %figure(2)
 %pulse_tvec = 0:pulse_tstep:pulse_tstep*(pulse_inc-1);
 %plot(pulse_tvec,f_pulse)
