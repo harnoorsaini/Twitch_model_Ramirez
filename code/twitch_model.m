@@ -28,13 +28,14 @@ disp(outStr)
 
 % -------------------------------------------------------------------------
 % USER INPUTS & PARAMETERS
+twocolumns = 1;
 fatigue = 0;
 
 % MU firing parameters
 firing_type = 'generate'; % read or generate
-firing_freq = 50; %Hz
+firing_freq = 10; %Hz
 filter_freq = 10; %Hz
-firing_time = 2; %s
+firing_time = 0.5; %s
 
 % unit pulse parameters 
 Pprime = 0.11;
@@ -201,10 +202,26 @@ title('MUAP and Summed Global Activation')
 if fatigue, figure(2), plot(f_sat), end
 
 
-fileID = fopen('integrated_activation.txt','w');
+fileID = fopen('2.txt','w');
 outMat(1,:) = conv_tvec;
-outMat(2,:) = alpha_filt;
-fprintf(fileID,'%12.8f %12.8f\n', outMat);
+for i = 1:length(alpha_filt)
+    if alpha_filt(i) < 0
+        alpha_filt(i) = 0;
+    end
+end
+outMat(2,:) = alpha_filt ;
+if twocolumns, fprintf(fileID,'%12.8f %12.8f\n', outMat); end
+if ~twocolumns
+    for i = 1:length(alpha_filt)
+        outStr = ['alpha_r(' num2str(i) ',1)=' num2str(conv_tvec(i))];
+        fprintf(fileID,'%s\n', outStr);
+    end
+    fprintf(fileID,'%s\n', '-----');
+    for i = 1:length(alpha_filt)
+        outStr = ['alpha_r(' num2str(i) ',2)=' num2str(alpha_filt(i))];
+        fprintf(fileID,'%s\n', outStr);    
+    end
+end
 fclose(fileID);
 
 disp('COMPLETE')
